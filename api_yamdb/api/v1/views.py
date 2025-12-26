@@ -136,7 +136,9 @@ class UsersViewSet(viewsets.ModelViewSet):
             return Response(UserMeSerializer(user).data)
 
         if request.method == "PATCH":
-            serializer = UserMeSerializer(user, data=request.data, partial=True)
+            serializer = UserMeSerializer(
+                user, data=request.data, partial=True
+            )
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
