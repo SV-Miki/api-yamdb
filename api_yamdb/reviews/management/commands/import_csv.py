@@ -1,3 +1,4 @@
+# api_yamdb/reviews/management/commands/import_csv.py
 import csv
 from pathlib import Path
 
@@ -12,49 +13,39 @@ DATA_DIR = Path(settings.BASE_DIR) / "static" / "data"
 
 
 def _read_csv(filename: str):
-    """Читает CSV из static/data и отдаёт строки как dict
-
-    (через csv.DictReader).
-    """
+    """Читает CSV из каталога DATA_DIR и отдаёт строки как dict."""
     path = DATA_DIR / filename
     with path.open(encoding="utf-8") as f:
         yield from csv.DictReader(f)
 
 
 class Command(BaseCommand):
-    """Импорт данных YaMDb из CSV-файлов в static/data.
+    """Импорт данных YaMDb из CSV-файлов каталога DATA_DIR.
 
-    Команда идемпотентна: использует update_or_create
-    и может запускаться повторно.
+    Команда идемпотентна:
+    использует update_or_create и может запускаться повторно.
     Импорт выполняется в одной транзакции.
     """
 
-    help = "Import YaMDb data from static/data CSV files"
+    help = "Import YaMDb data from CSV files located in DATA_DIR"
 
     @transaction.atomic
     def handle(self, *args, **options):
-        """Точка входа команды:
-
-        по порядку импортирует пользователей, справочники и контент.
-        """
+        """Точка входа команды: выполняет импорт шагов по порядку."""
         self.stdout.write(self.style.WARNING(f"DATA_DIR = {DATA_DIR}"))
 
-        # 0) users
-        self._import_users("users.csv")
+        steps = (
+            ("users.csv", self._import_users),
+            ("category.csv", self._import_categories),
+            ("genre.csv", self._import_genres),
+            ("titles.csv", self._import_titles),
+            ("genre_title.csv", self._import_genre_title),
+            ("review.csv", self._import_reviews),
+            ("comments.csv", self._import_comments),
+        )
 
-        # 1) categories, genres
-        self._import_categories("category.csv")
-        self._import_genres("genre.csv")
-
-        # 2) titles
-        self._import_titles("titles.csv")
-
-        # 3) m2m
-        self._import_genre_title("genre_title.csv")
-
-        # 4) reviews, comments
-        self._import_reviews("review.csv")
-        self._import_comments("comments.csv")
+        for filename, func in steps:
+            func(filename)
 
         self.stdout.write(self.style.SUCCESS("Import finished"))
 

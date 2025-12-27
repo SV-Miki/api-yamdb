@@ -3,61 +3,54 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+from api_yamdb.constants import (
+    NAME_MAX_LENGTH,
+    REVIEW_SCORE_MAX,
+    REVIEW_SCORE_MIN,
+)
+from reviews.services import current_year
 
-def current_year() -> int:
-    """Возвращает текущий год
 
-    (используется валидатором поля year у произведений).
-    """
-    return timezone.now().year
+class NamedSlugModel(models.Model):
+    """Абстрактная модель: name + slug, общий str и ordering."""
+
+    name = models.CharField("Название", max_length=NAME_MAX_LENGTH)
+    slug = models.SlugField("Слаг", unique=True)
+
+    class Meta:
+        abstract = True
+        ordering = ("name",)
+
+    def __str__(self) -> str:
+        return str(self.name)
 
 
-class Category(models.Model):
+class Category(NamedSlugModel):
     """Категория произведений (например: книги, музыка, фильмы)."""
 
-    name = models.CharField("Название", max_length=256)
-    slug = models.SlugField("Слаг", max_length=50, unique=True)
-
-    class Meta:
+    class Meta(NamedSlugModel.Meta):
         verbose_name = "Категория"
         verbose_name_plural = "Категории"
-        ordering = ("name",)
-
-    def __str__(self) -> str:
-        return str(self.name)
 
 
-class Genre(models.Model):
+class Genre(NamedSlugModel):
     """Жанр произведений (например: драма, детектив, рок)."""
 
-    name = models.CharField("Название", max_length=256)
-    slug = models.SlugField("Слаг", max_length=50, unique=True)
-
-    class Meta:
+    class Meta(NamedSlugModel.Meta):
         verbose_name = "Жанр"
         verbose_name_plural = "Жанры"
-        ordering = ("name",)
-
-    def __str__(self) -> str:
-        return str(self.name)
 
 
 class Title(models.Model):
-    """Произведение (title) в каталоге YaMDb.
+    """Произведение (title) в каталоге YaMDb."""
 
-    Связано с:
-    - Category (FK, SET_NULL)
-    - Genre (M2M через GenreTitle)
-    """
-
-    name = models.CharField("Название", max_length=256)
-    year = models.PositiveSmallIntegerField(
+    name = models.CharField("Название", max_length=NAME_MAX_LENGTH)
+    year = models.SmallIntegerField(
         "Год выпуска",
         validators=[MaxValueValidator(current_year)],
     )
     description = models.TextField("Описание", blank=True)
 
-    # При удалении категории произведения НЕ удаляются → SET_NULL
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
@@ -66,7 +59,6 @@ class Title(models.Model):
         verbose_name="Категория",
     )
 
-    # При удалении жанра произведения НЕ удаляются → M2M просто очистит связь
     genre = models.ManyToManyField(
         Genre,
         through="GenreTitle",
@@ -89,13 +81,13 @@ class GenreTitle(models.Model):
     title = models.ForeignKey(
         Title,
         on_delete=models.CASCADE,
-        related_name="genre_links",
+        related_name="genre_titles",
         verbose_name="Произведение",
     )
     genre = models.ForeignKey(
         Genre,
         on_delete=models.CASCADE,
-        related_name="title_links",
+        related_name="genre_titles",
         verbose_name="Жанр",
     )
 
@@ -113,12 +105,22 @@ class GenreTitle(models.Model):
         return f"{self.title_id} <-> {self.genre_id}"
 
 
-class Review(models.Model):
-    """Отзыв пользователя на произведение.
+class TextWithPubDateModel(models.Model):
+    """Абстрактная модель: текст + дата публикации."""
 
-    Ограничение:
-    один пользователь может оставить только один отзыв на одно произведение.
-    """
+    text = models.TextField("Текст")
+    pub_date = models.DateTimeField(
+        "Дата публикации",
+        default=timezone.now,
+        db_index=True,
+    )
+
+    class Meta:
+        abstract = True
+
+
+class Review(TextWithPubDateModel):
+    """Отзыв пользователя на произведение."""
 
     title = models.ForeignKey(
         Title,
@@ -126,7 +128,6 @@ class Review(models.Model):
         related_name="reviews",
         verbose_name="Произведение",
     )
-    text = models.TextField("Текст")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -135,12 +136,10 @@ class Review(models.Model):
     )
     score = models.PositiveSmallIntegerField(
         "Оценка",
-        validators=[MinValueValidator(1), MaxValueValidator(10)],
-    )
-    pub_date = models.DateTimeField(
-        "Дата публикации",
-        default=timezone.now,
-        db_index=True,
+        validators=[
+            MinValueValidator(REVIEW_SCORE_MIN),
+            MaxValueValidator(REVIEW_SCORE_MAX),
+        ],
     )
 
     class Meta:
@@ -148,8 +147,6 @@ class Review(models.Model):
         verbose_name_plural = "Отзывы"
         ordering = ("-pub_date",)
         constraints = [
-            # “На одно произведение пользователь
-            # может оставить только один отзыв”
             models.UniqueConstraint(
                 fields=("title", "author"),
                 name="unique_review_per_title_author",
@@ -160,7 +157,7 @@ class Review(models.Model):
         return f"Отзыв {self.author} к '{self.title}' ({self.score})"
 
 
-class Comment(models.Model):
+class Comment(TextWithPubDateModel):
     """Комментарий пользователя к отзыву (Review)."""
 
     review = models.ForeignKey(
@@ -169,17 +166,11 @@ class Comment(models.Model):
         related_name="comments",
         verbose_name="Отзыв",
     )
-    text = models.TextField("Текст")
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="comments",
         verbose_name="Автор",
-    )
-    pub_date = models.DateTimeField(
-        "Дата публикации",
-        default=timezone.now,
-        db_index=True,
     )
 
     class Meta:
