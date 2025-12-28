@@ -7,6 +7,7 @@ from rest_framework.permissions import (
 
 def _is_admin(user) -> bool:
     """Проверяет, является ли пользователь админом (role/staff/superuser)."""
+
     return bool(
         user and user.is_authenticated and getattr(user, "is_admin", False)
     )

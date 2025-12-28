@@ -13,6 +13,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from django_filters.rest_framework import DjangoFilterBackend
+
+from api.v1.filters import TitleFilter
 from api.v1.pagination import DefaultPagination
 from api.v1.permissions import (
     IsAdmin,
@@ -23,7 +26,6 @@ from api.v1.serializers import (
     SignupSerializer,
     TokenSerializer,
     UserSerializer,
-    UserMeSerializer,
     CategorySerializer,
     GenreSerializer,
     TitleReadSerializer,
@@ -31,12 +33,7 @@ from api.v1.serializers import (
     ReviewSerializer,
     CommentSerializer,
 )
-from reviews.models import (
-    Category,
-    Genre,
-    Review,
-    Title,
-)
+from reviews.models import Category, Genre, Review, Title
 
 User = get_user_model()
 
@@ -50,24 +47,20 @@ class SignupView(APIView):
         serializer = SignupSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        username = serializer.validated_data["username"]
-        email = serializer.validated_data["email"]
-
-        user, _ = User.objects.get_or_create(username=username, email=email)
-
+        user = serializer.save()
         confirmation_code = default_token_generator.make_token(user)
+
+        print(f"Ваш код подтверждения: {confirmation_code}", flush=True)
 
         send_mail(
             subject="YaMDb confirmation code",
             message=f"Ваш код подтверждения: {confirmation_code}",
             from_email=None,
-            recipient_list=[email],
+            recipient_list=[user.email],
             fail_silently=False,
         )
 
-        return Response(
-            {"email": email, "username": username}, status=status.HTTP_200_OK
-        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class TokenView(APIView):
@@ -96,65 +89,56 @@ class UsersViewSet(viewsets.ModelViewSet):
     http_method_names = ("get", "post", "patch", "delete", "head", "options")
 
     def get_permissions(self):
-        if getattr(self, "action", None) == "me":
+        if self.request.path.rstrip("/").endswith("/users/me"):
             return [IsAuthenticated()]
         return [IsAdmin()]
 
-    def get_serializer_class(self):
-        if getattr(self, "action", None) == "me":
-            return UserMeSerializer
-        return UserSerializer
-
-    @action(detail=False, methods=("get", "patch", "delete"), url_path="me")
+    @action(detail=False, methods=("get", "patch"), url_path="me")
     def me(self, request):
-        if request.method == "DELETE":
-            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
         user = request.user
 
         if request.method == "GET":
             return Response(self.get_serializer(user).data)
 
-        serializer = self.get_serializer(user, data=request.data, partial=True)
+        data = request.data.copy()
+        data.pop("role", None)
+
+        serializer = self.get_serializer(user, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(role=user.role)
         return Response(serializer.data)
 
 
-class CategoryViewSet(
+class BaseNamedSlugViewSet(
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
+    """Базовый класс для Category/Genre (общий код)."""
+
+    permission_classes = (IsAdminOrReadOnly,)
+    pagination_class = DefaultPagination
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ("name",)
+    lookup_field = "slug"
+    http_method_names = ["get", "post", "delete", "head", "options"]
+    queryset = None
+    serializer_class = None
+
+
+class CategoryViewSet(BaseNamedSlugViewSet):
     """Категории: список/создание/удаление. Изменения - только админу."""
 
     queryset = Category.objects.all().order_by("name")
     serializer_class = CategorySerializer
-    permission_classes = (IsAdminOrReadOnly,)
-    pagination_class = DefaultPagination
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ("name",)
-    lookup_field = "slug"
-    http_method_names = ["get", "post", "delete", "head", "options"]
 
 
-class GenreViewSet(
-    mixins.CreateModelMixin,
-    mixins.ListModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
+class GenreViewSet(BaseNamedSlugViewSet):
     """Жанры: список/создание/удаление. Изменения - только админу."""
 
     queryset = Genre.objects.all().order_by("name")
     serializer_class = GenreSerializer
-    permission_classes = (IsAdminOrReadOnly,)
-    pagination_class = DefaultPagination
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ("name",)
-    lookup_field = "slug"
-    http_method_names = ["get", "post", "delete", "head", "options"]
 
 
 class TitleViewSet(viewsets.ModelViewSet):
@@ -164,33 +148,17 @@ class TitleViewSet(viewsets.ModelViewSet):
     pagination_class = DefaultPagination
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = TitleFilter
+
     def get_queryset(self):
-        qs = (
+        return (
             Title.objects.all()
             .select_related("category")
             .prefetch_related("genre")
             .annotate(rating=Cast(Avg("reviews__score"), IntegerField()))
-            .order_by("id")
+            .order_by("name")
         )
-
-        params = self.request.query_params
-        category = params.get("category")
-        if category:
-            qs = qs.filter(category__slug=category)
-
-        genre = params.get("genre")
-        if genre:
-            qs = qs.filter(genre__slug=genre)
-
-        name = params.get("name")
-        if name:
-            qs = qs.filter(name__icontains=name)
-
-        year = params.get("year")
-        if year:
-            qs = qs.filter(year=year)
-
-        return qs.distinct()
 
     def get_serializer_class(self):
         if self.action in ("list", "retrieve"):
@@ -210,7 +178,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         title = self.get_title()
-        return title.reviews.select_related("author", "title").order_by("id")
+        return title.reviews.select_related("author", "title")
 
     def perform_create(self, serializer):
         title = self.get_title()
@@ -232,9 +200,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         review = self.get_review()
-        return review.comments.select_related(
-            "author", "review"
-        ).order_by("id")
+        return review.comments.select_related("author", "review")
 
     def perform_create(self, serializer):
         review = self.get_review()

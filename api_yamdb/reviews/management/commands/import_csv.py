@@ -1,4 +1,3 @@
-# api_yamdb/reviews/management/commands/import_csv.py
 import csv
 from pathlib import Path
 
@@ -14,6 +13,7 @@ DATA_DIR = Path(settings.BASE_DIR) / "static" / "data"
 
 def _read_csv(filename: str):
     """Читает CSV из каталога DATA_DIR и отдаёт строки как dict."""
+
     path = DATA_DIR / filename
     with path.open(encoding="utf-8") as f:
         yield from csv.DictReader(f)

@@ -1,13 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.validators import UnicodeUsernameValidator
-from django.core.validators import RegexValidator
 from django.db.models import Avg, IntegerField
 from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404
 
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
 
 from api_yamdb.constants import (
     EMAIL_MAX_LENGTH,
@@ -15,19 +13,11 @@ from api_yamdb.constants import (
     USERNAME_MAX_LENGTH,
     REVIEW_SCORE_MIN,
     REVIEW_SCORE_MAX,
-    SLUG_REGEX,
-    SLUG_MAX_LENGTH,
 )
 
 from reviews.models import Category, Comment, Genre, Review, Title
 
 User = get_user_model()
-
-slug_validator = RegexValidator(
-    regex=SLUG_REGEX,
-    message="Slug может содержать только латинские буквы, "
-            "цифры, дефис и подчёркивание.",
-)
 
 
 class SignupSerializer(serializers.Serializer):
@@ -64,6 +54,10 @@ class SignupSerializer(serializers.Serializer):
 
         return attrs
 
+    def create(self, validated_data):
+        user, _ = User.objects.get_or_create(**validated_data)
+        return user
+
 
 class TokenSerializer(serializers.Serializer):
     """Данные для получения JWT: username + confirmation_code."""
@@ -94,15 +88,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             "username", "email", "first_name", "last_name", "bio", "role"
         )
-        extra_kwargs = {
-            "email": {"max_length": EMAIL_MAX_LENGTH},
-        }
-
-
-class UserMeSerializer(UserSerializer):
-    """Профиль текущего пользователя (/users/me/): роль менять нельзя."""
-
-    role = serializers.CharField(read_only=True)
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -111,15 +96,6 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ("name", "slug")
-        extra_kwargs = {
-            "slug": {
-                "max_length": SLUG_MAX_LENGTH,
-                "validators": [
-                    slug_validator,
-                    UniqueValidator(queryset=Category.objects.all()),
-                ],
-            }
-        }
 
 
 class GenreSerializer(serializers.ModelSerializer):
@@ -128,15 +104,6 @@ class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
         fields = ("name", "slug")
-        extra_kwargs = {
-            "slug": {
-                "max_length": SLUG_MAX_LENGTH,
-                "validators": [
-                    slug_validator,
-                    UniqueValidator(queryset=Genre.objects.all()),
-                ],
-            }
-        }
 
 
 class TitleReadSerializer(serializers.ModelSerializer):

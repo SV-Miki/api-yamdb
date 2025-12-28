@@ -106,9 +106,16 @@ class GenreTitle(models.Model):
 
 
 class TextWithPubDateModel(models.Model):
-    """Абстрактная модель: текст + дата публикации."""
+    """Абстрактная модель: текст + автор + дата публикации."""
 
     text = models.TextField("Текст")
+
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        verbose_name="Автор",
+    )
+
     pub_date = models.DateTimeField(
         "Дата публикации",
         default=timezone.now,
@@ -117,6 +124,7 @@ class TextWithPubDateModel(models.Model):
 
     class Meta:
         abstract = True
+        ordering = ("-pub_date",)
 
 
 class Review(TextWithPubDateModel):
@@ -128,12 +136,7 @@ class Review(TextWithPubDateModel):
         related_name="reviews",
         verbose_name="Произведение",
     )
-    author = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="reviews",
-        verbose_name="Автор",
-    )
+
     score = models.PositiveSmallIntegerField(
         "Оценка",
         validators=[
@@ -142,10 +145,10 @@ class Review(TextWithPubDateModel):
         ],
     )
 
-    class Meta:
+    class Meta(TextWithPubDateModel.Meta):
         verbose_name = "Отзыв"
         verbose_name_plural = "Отзывы"
-        ordering = ("-pub_date",)
+        default_related_name = "reviews"
         constraints = [
             models.UniqueConstraint(
                 fields=("title", "author"),
@@ -166,17 +169,11 @@ class Comment(TextWithPubDateModel):
         related_name="comments",
         verbose_name="Отзыв",
     )
-    author = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="comments",
-        verbose_name="Автор",
-    )
 
-    class Meta:
+    class Meta(TextWithPubDateModel.Meta):
         verbose_name = "Комментарий"
         verbose_name_plural = "Комментарии"
-        ordering = ("-pub_date",)
+        default_related_name = "comments"
 
     def __str__(self) -> str:
         return f"Комментарий {self.author} к отзыву {self.review_id}"
