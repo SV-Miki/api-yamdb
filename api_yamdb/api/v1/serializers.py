@@ -168,12 +168,15 @@ class ReviewSerializer(serializers.ModelSerializer):
         if request and view and request.method == "POST":
             title_id = view.kwargs.get("title_id")
             if Review.objects.filter(
-                    title_id=title_id, author=request.user
+                title_id=title_id,
+                author=request.user,
             ).exists():
                 raise serializers.ValidationError(
-                    {"non_field_errors": [
-                        "Вы уже оставляли отзыв на это произведение."
-                    ]}
+                    {
+                        "non_field_errors": [
+                            "Вы уже оставляли отзыв на это произведение."
+                        ]
+                    }
                 )
         return attrs
 

@@ -50,8 +50,6 @@ class SignupView(APIView):
         user = serializer.save()
         confirmation_code = default_token_generator.make_token(user)
 
-        print(f"Ваш код подтверждения: {confirmation_code}", flush=True)
-
         send_mail(
             subject="YaMDb confirmation code",
             message=f"Ваш код подтверждения: {confirmation_code}",
@@ -100,10 +98,11 @@ class UsersViewSet(viewsets.ModelViewSet):
         if request.method == "GET":
             return Response(self.get_serializer(user).data)
 
-        data = request.data.copy()
-        data.pop("role", None)
-
-        serializer = self.get_serializer(user, data=data, partial=True)
+        serializer = self.get_serializer(
+            user,
+            data=request.data,
+            partial=True,
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save(role=user.role)
         return Response(serializer.data)

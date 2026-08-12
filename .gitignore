@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # Папки, создаваемые средой разработки
-.idea
+.idea/
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -142,8 +142,6 @@ dmypy.json
 
 # Local History for Visual Studio Code
 .history/
-
-.mypy_cache
 
 # папки со статикой и медиа
 media/

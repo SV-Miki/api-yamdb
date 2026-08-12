@@ -1,5 +1,4 @@
 import csv
-from pathlib import Path
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -8,7 +7,7 @@ from django.db import transaction
 from reviews.models import Category, Comment, Genre, GenreTitle, Review, Title
 from users.models import User
 
-DATA_DIR = Path(settings.BASE_DIR) / "static" / "data"
+DATA_DIR = settings.BASE_DIR / "static" / "data"
 
 
 def _read_csv(filename: str):

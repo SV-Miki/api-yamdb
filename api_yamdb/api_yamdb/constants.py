@@ -5,22 +5,6 @@ RESERVED_USERNAME = "me"
 USERNAME_MAX_LENGTH = 150
 EMAIL_MAX_LENGTH = 254
 NAME_MAX_LENGTH = 256
-SLUG_MAX_LENGTH = 50
-
-CATEGORY_NAME_MAX_LENGTH = NAME_MAX_LENGTH
-
-SLUG_REGEX = r"^[-a-zA-Z0-9_]+$"
-
-# roles
-ROLE_USER = "user"
-ROLE_MODERATOR = "moderator"
-ROLE_ADMIN = "admin"
-ROLE_CHOICES = (
-    (ROLE_USER, "User"),
-    (ROLE_MODERATOR, "Moderator"),
-    (ROLE_ADMIN, "Admin"),
-)
-ROLE_MAX_LENGTH = max(len(role) for role, _ in ROLE_CHOICES)
 
 # pagination
 DEFAULT_PAGE_SIZE = 10

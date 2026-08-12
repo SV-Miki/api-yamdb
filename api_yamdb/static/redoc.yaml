@@ -1,7 +1,7 @@
 openapi: 3.0.2
 info:
   title: 'YaMDb API'
-  version: ''
+  version: '1.0.0'
   description: |
     запросы к API начинаются с `/api/v1/`
     # Описание
@@ -10,13 +10,13 @@ info:
     1. Пользователь отправляет POST-запрос на добавление нового пользователя с параметрами `email` и `username` на эндпоинт `/api/v1/auth/signup/`.
     2. **YaMDB** отправляет письмо с кодом подтверждения (`confirmation_code`) на адрес  `email`.
     3. Пользователь отправляет POST-запрос с параметрами `username` и `confirmation_code` на эндпоинт `/api/v1/auth/token/`, в ответе на запрос ему приходит `token` (JWT-токен).
-    4. При желании пользователь отправляет PATCH-запрос на эндпоинт `/api/v1/users/me/` и заполняет поля в своём профайле (описание полей — в документации).
+    4. При желании пользователь отправляет PATCH-запрос на эндпоинт `/api/v1/users/me/` и заполняет поля в своём профиле (описание полей — в документации).
     # Пользовательские роли
     - **Аноним** — может просматривать описания произведений, читать отзывы и комментарии.
-    - **Аутентифицированный пользователь** (`user`) — может, как и **Аноним**, читать всё, дополнительно он может публиковать отзывы и ставить оценку произведениям (фильмам/книгам/песенкам), может комментировать чужие отзывы; может редактировать и удалять **свои** отзывы и комментарии. Эта роль присваивается по умолчанию каждому новому пользователю.
+    - **Аутентифицированный пользователь** (`user`) — может, как и **Аноним**, читать всё, дополнительно он может публиковать отзывы и ставить оценку произведениям (фильмам, книгам и музыкальным произведениям), может комментировать чужие отзывы; может редактировать и удалять **свои** отзывы и комментарии. Эта роль присваивается по умолчанию каждому новому пользователю.
     - **Модератор** (`moderator`) — те же права, что и у **Аутентифицированного пользователя** плюс право удалять **любые** отзывы и комментарии.
     - **Администратор** (`admin`) — полные права на управление всем контентом проекта. Может создавать и удалять произведения, категории и жанры. Может назначать роли пользователям. 
-    - **Суперюзер Django** — обладет правами администратора (`admin`)
+    - **Суперюзер Django** — обладает правами администратора (`admin`)
 servers:
   - url: /api/v1/
 
@@ -26,9 +26,9 @@ tags:
   - name: CATEGORIES
     description: Категории (типы) произведений
   - name: GENRES
-    description: Категории жанров
+    description: Жанры произведений
   - name: TITLES
-    description: Произведения, к которым пишут отзывы (определённый фильм, книга или песенка).
+    description: Произведения, к которым пишут отзывы (например, фильм, книга или музыкальное произведение).
   - name: REVIEWS
     description: Отзывы
   - name: COMMENTS
@@ -184,8 +184,7 @@ paths:
         403:
           description: Нет прав доступа
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
   /categories/{slug}/:
     delete:
       tags:
@@ -211,8 +210,7 @@ paths:
         404:
           description: Категория не найдена
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
 
   /genres/:
     get:
@@ -277,8 +275,7 @@ paths:
         403:
           description: Нет прав доступа
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
 
   /genres/{slug}/:
     delete:
@@ -305,8 +302,7 @@ paths:
         404:
           description: Жанр не найден
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
 
   /titles/:
     get:
@@ -388,11 +384,10 @@ paths:
         403:
           description: Нет прав доступа
       security:
-      - jwt-token:
-        - write:admin
-  /titles/{titles_id}/:
+      - jwt-token: []
+  /titles/{title_id}/:
     parameters:
-      - name: titles_id
+      - name: title_id
         in: path
         required: true
         description: ID объекта
@@ -440,8 +435,7 @@ paths:
         404:
           description: Объект не найден
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
     delete:
       tags:
         - TITLES
@@ -459,8 +453,7 @@ paths:
         404:
           description: Произведение не найдено
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
 
   /titles/{title_id}/reviews/:
     parameters:
@@ -527,8 +520,7 @@ paths:
         404:
           description: Произведение не найдено
       security:
-      - jwt-token:
-        - write:user,moderator,admin
+      - jwt-token: []
   /titles/{title_id}/reviews/{review_id}/:
     parameters:
       - name: title_id
@@ -546,7 +538,7 @@ paths:
     get:
       tags:
         - REVIEWS
-      operationId: Полуение отзыва по id
+      operationId: Получение отзыва по id
       description: |
         Получить отзыв по id для указанного произведения.
         Права доступа: **Доступно без токена.**
@@ -591,8 +583,7 @@ paths:
         404:
           description: Произведение не найдено
       security:
-      - jwt-token:
-        - write:user,moderator,admin
+      - jwt-token: []
     delete:
       tags:
         - REVIEWS
@@ -610,8 +601,7 @@ paths:
         404:
           description: Произведение или отзыв не найдены
       security:
-      - jwt-token:
-        - write:user,moderator,admin
+      - jwt-token: []
 
   /titles/{title_id}/reviews/{review_id}/comments/:
     parameters:
@@ -684,8 +674,7 @@ paths:
         404:
           description: Не найдено произведение или отзыв
       security:
-      - jwt-token:
-        - write:user,moderator,admin
+      - jwt-token: []
 
   /titles/{title_id}/reviews/{review_id}/comments/{comment_id}/:
     parameters:
@@ -755,8 +744,7 @@ paths:
         404:
           description: Не найдено произведение, отзыв или комментарий
       security:
-      - jwt-token:
-        - write:user,moderator,admin
+      - jwt-token: []
     delete:
       tags:
         - COMMENTS
@@ -774,8 +762,7 @@ paths:
         404:
           description: Не найдено произведение, отзыв или комментарий
       security:
-      - jwt-token:
-        - write:user,moderator,admin
+      - jwt-token: []
 
   /users/:
     get:
@@ -812,8 +799,7 @@ paths:
         401:
           description: Необходим JWT-токен
       security:
-      - jwt-token:
-        - read:admin
+      - jwt-token: []
     post:
       tags:
         - USERS
@@ -845,8 +831,7 @@ paths:
         403:
           description: Нет прав доступа
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
   /users/{username}/:
     parameters:
       - name: username
@@ -876,8 +861,7 @@ paths:
         404:
           description: Пользователь не найден
       security:
-      - jwt-token:
-        - read:admin
+      - jwt-token: []
     patch:
       tags:
         - USERS
@@ -911,8 +895,7 @@ paths:
         404:
           description: Пользователь не найден
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
     delete:
       tags:
         - USERS
@@ -930,8 +913,7 @@ paths:
         404:
           description: Пользователь не найден
       security:
-      - jwt-token:
-        - write:admin
+      - jwt-token: []
 
   /users/me/:
     get:
@@ -949,8 +931,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserReadOrPatch'
       security:
-      - jwt-token:
-        - read:admin,moderator,user
+      - jwt-token: []
     patch:
       tags:
         - USERS
@@ -970,7 +951,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserReadOrPatch'
         400:
           description: 'Отсутствует обязательное поле или оно некорректно'
           content:
@@ -978,8 +959,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationError'
       security:
-      - jwt-token:
-        - write:admin,moderator,user
+      - jwt-token: []
 
 components:
   schemas:
@@ -1021,7 +1001,7 @@ components:
     UserReadOrPatch:
       title: Пользователь
       type: object
-      description: Обеновление данных пользователя
+      description: Обновление данных пользователя
       properties:
         username:
           type: string
@@ -1065,7 +1045,7 @@ components:
           title: Год выпуска
         rating:
           type: integer
-          readOnly: True
+          readOnly: true
           title: Рейтинг на основе отзывов, если отзывов нет — `None`
         description:
           type: string
@@ -1137,7 +1117,7 @@ components:
       properties:
         id:
           type: integer
-          title: ID  отзыва
+          title: ID отзыва
           readOnly: true
         text:
           type: string
@@ -1183,7 +1163,7 @@ components:
       properties:
         id:
           type: integer
-          title: ID  комментария
+          title: ID комментария
           readOnly: true
         text:
           type: string
@@ -1251,7 +1231,6 @@ components:
 
   securitySchemes:
     jwt-token:
-      type: apiKey
-      description: Используется аутентификация с использованием JWT-токенов
-      name: Bearer
-      in: header
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
