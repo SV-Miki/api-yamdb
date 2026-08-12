@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv(
     'DJANGO_SECRET_KEY',
-    'CHANGE_ME_DJANGO_SECRET_KEY',
+    'CHANGE_ME_DJANGO_SECRET_KEY_FOR_LOCAL_DEVELOPMENT',
 )
 
 DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
