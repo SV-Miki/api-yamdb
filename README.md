@@ -32,7 +32,7 @@ YaMDb - REST API для сервиса отзывов на произведен�
 ## Структура проекта
 
 ```text
-api-yamdb/
+yamdb-api/
 ├── api_yamdb/
 │   ├── api/
 │   │   ├── v1/                         # API v1: views, serializers, permissions, filters
@@ -120,8 +120,8 @@ api-yamdb/
 Клонируйте репозиторий:
 
 ```bash
-git clone https://github.com/SV-Miki/api-yamdb.git
-cd api-yamdb
+git clone git@github.com:SV-Miki/yamdb-api.git
+cd yamdb-api
 ```
 
 Создайте и активируйте виртуальное окружение:
